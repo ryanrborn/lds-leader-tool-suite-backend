@@ -40,11 +40,17 @@ class Companion(models.Model):
 
 class Assignment(models.Model):
     companionship = models.ForeignKey(Companionship, related_name="assignments")
-    household = models.ForeignKey(Household)
+    household = models.ForeignKey(Household, related_name="active_assignment")
     created = models.DateTimeField(auto_now_add=True)
+
+class AssignmentHistory(models.Model):
+    household = models.ForeignKey(Household, related_name="past_assignments")
+    date = models.DateField()
 
 class Visit(models.Model):
     household = models.ForeignKey(Household, related_name="visits")
+    visitor1 = models.CharField(max_length=128)
+    visitor2 = models.CharField(max_length=128, blank=True)
     date = models.DateField()
     notes = models.TextField(blank=True)
 
