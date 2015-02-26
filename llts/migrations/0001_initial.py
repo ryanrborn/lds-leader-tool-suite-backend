@@ -23,6 +23,16 @@ class Migration(migrations.Migration):
             bases=(models.Model,),
         ),
         migrations.CreateModel(
+            name='AssignmentHistory',
+            fields=[
+                ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('date', models.DateField()),
+            ],
+            options={
+            },
+            bases=(models.Model,),
+        ),
+        migrations.CreateModel(
             name='Companion',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
@@ -100,6 +110,8 @@ class Migration(migrations.Migration):
             name='Visit',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
+                ('visitor1', models.CharField(max_length=128)),
+                ('visitor2', models.CharField(max_length=128, blank=True)),
                 ('date', models.DateField()),
                 ('notes', models.TextField(blank=True)),
                 ('household', models.ForeignKey(related_name='visits', to='llts.Household')),
@@ -145,6 +157,12 @@ class Migration(migrations.Migration):
             preserve_default=True,
         ),
         migrations.AddField(
+            model_name='assignmenthistory',
+            name='household',
+            field=models.ForeignKey(related_name='past_assignments', to='llts.Household'),
+            preserve_default=True,
+        ),
+        migrations.AddField(
             model_name='assignment',
             name='companionship',
             field=models.ForeignKey(related_name='assignments', to='llts.Companionship'),
@@ -153,7 +171,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='assignment',
             name='household',
-            field=models.ForeignKey(to='llts.Household'),
+            field=models.ForeignKey(related_name='active_assignment', to='llts.Household'),
             preserve_default=True,
         ),
     ]
