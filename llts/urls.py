@@ -19,6 +19,7 @@ urlpatterns = [
     url(r'^assignments/(?P<pk>[0-9]+)/$', views.AssignmentDetail.as_view()),
     url(r'^visits/$', views.VisitList.as_view()),
     url(r'^visits/(?P<pk>[0-9]+)/$', views.VisitDetail.as_view()),
+    url(r'^api-auth-create/$', views.Register.as_view()),
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns)

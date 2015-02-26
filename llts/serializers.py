@@ -10,6 +10,12 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ('id', 'username', 'organizations')
 
+class RegistrationSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'password', 'email')
+
 class OrganizationSerializer(serializers.ModelSerializer):
     owner = serializers.ReadOnlyField(source='owner.username')
 

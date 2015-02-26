@@ -1,12 +1,15 @@
 from llts.models import Organization, Household, Member, District, Companionship, Assignment, Visit
-from llts.serializers import UserSerializer, OrganizationSerializer, HouseholdSerializer, MemberSerializer, DistrictSerializer, CompanionshipSerializer, AssignmentSerializer, VisitSerializer
+from llts.serializers import UserSerializer, RegistrationSerializer, OrganizationSerializer, HouseholdSerializer, MemberSerializer, DistrictSerializer, CompanionshipSerializer, AssignmentSerializer, VisitSerializer
+from llts import permissions as localpermissions
 from django.contrib.auth.models import User
-from rest_framework import generics
-from rest_framework import permissions
+from django.contrib.auth import get_user_model
+from rest_framework import generics, permissions, views, status
+from rest_framework.response import Response
 
 class UserList(generics.ListCreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
+    permission_classes = (permissions.IsAdminUser,)
 
 class UserDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = User.objects.all()
@@ -70,3 +73,26 @@ class VisitList(generics.ListCreateAPIView):
 class VisitDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Visit.objects.all()
     serializer_class = VisitSerializer
+
+
+class Register(views.APIView):
+    """
+    Only allow registrations
+    """
+    permission_classes = (permissions.AllowAny,)
+
+    def post(self, request, format=None):
+        VALID_USER_FIELDS = [f.name for f in get_user_model()._meta.fields]
+        DEFAULTS = {
+            # you can define any defaults that you would like for the user, here
+        }
+        serialized = RegistrationSerializer(data=request.DATA)
+        if serialized.is_valid():
+            user_data = {field: data for (field, data) in request.DATA.items() if field in VALID_USER_FIELDS}
+            user_data.update(DEFAULTS)
+            user = get_user_model().objects.create_user(
+                **user_data
+            )
+            return Response(UserSerializer(instance=user).data, status=status.HTTP_201_CREATED)
+        else:
+            return Response(serialized._errors, status=status.HTTP_400_BAD_REQUEST)
