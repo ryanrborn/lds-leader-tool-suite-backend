@@ -29,23 +29,6 @@ class UserDetail(generics.RetrieveUpdateDestroyAPIView):
 class OrganizationList(generics.ListCreateAPIView):
 	serializer_class = OrganizationSerializer
 
-	# def post(self, request, format=None):
-	# 	VALID_FIELDS = [f.name for f in Organization._meta.fields]
-	# 	DEFAULTS = {
-	# 		'owner': self.request.user,
-	# 		'households': []
-	# 	}
-	# 	serialized = OrganizationSerializer(data=request.DATA)
-	# 	if serialized.is_valid():
-	# 		organization_data = {field: data for (field, data) in request.DATA.items() if field in VALID_FIELDS}
-	# 		organization_data.update(DEFAULTS)
-	# 		organization = Organization.objects.create_organization(
-	# 			**organization_data
-	# 		)
-	# 		return Response(OrganizationSerializer(instance=organization).data, status=status.HTTP_201_CREATED)
-	# 	else:
-	# 		return Response(serialized._errors, status=status.HTTP_400_BAD_REQUEST)
-
 	def perform_create(self, serializer):
 		serializer.save(owner=self.request.user, households=[]);
 
@@ -62,28 +45,32 @@ class OrganizationList(generics.ListCreateAPIView):
 class OrganizationDetail(generics.RetrieveUpdateDestroyAPIView):
 	queryset = Organization.objects.all()
 	serializer_class = OrganizationSerializer
-	permission_classes = (localpermissions.OwnerOrAdmin,)
+	permission_classes = (localpermissions.OrganizationOwner,)
 
 class HouseholdList(generics.ListCreateAPIView):
 	queryset = Household.objects.all()
 	serializer_class = HouseholdSerializer
 
 	def get_queryset(self):
+		if self.request.user.is_staff:
+			return super(HouseholdList, self).get_queryset();
 		return super(HouseholdList, self).get_queryset().filter(organization__owner=self.request.user)
 
 class HouseholdDetail(generics.RetrieveUpdateDestroyAPIView):
 	queryset = Household.objects.all()
 	serializer_class = HouseholdSerializer
-
-	def get_queryset(self):
-		return self.request
+	permission_classes = (localpermissions.HouseholdOwner,)
 
 class MemberList(generics.ListCreateAPIView):
 	queryset = Member.objects.all()
 	serializer_class = MemberSerializer
 
 	def get_queryset(self):
-		return super(MemberList, self).get_queryset().filter(household__organizations__user=self.request.user)
+		set = super(MemberList, self).get_queryset()
+		if self.request.user.is_staff:
+			return set
+		else:
+			return set.filter(household__organization__owner=self.request.user)
 
 class MemberDetail(generics.RetrieveUpdateDestroyAPIView):
 	queryset = Member.objects.all()
