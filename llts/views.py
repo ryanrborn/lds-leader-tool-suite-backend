@@ -7,11 +7,6 @@ from rest_framework import generics, permissions, views, status, mixins
 from rest_framework.response import Response
 
 
-def filter_queryset(self, queryset):
-	queryset = queryset.filter()
-	return queryset
-
-
 class UserList(generics.ListCreateAPIView):
 	serializer_class = UserSerializer
 
@@ -27,6 +22,7 @@ class UserDetail(generics.RetrieveUpdateDestroyAPIView):
 	permission_classes = (permissions.IsAdminUser,)
 
 class OrganizationList(generics.ListCreateAPIView):
+	queryset = Organization.objects.all()
 	serializer_class = OrganizationSerializer
 
 	def perform_create(self, serializer):
@@ -38,9 +34,9 @@ class OrganizationList(generics.ListCreateAPIView):
 		tied to the user. Admins see all
 		"""
 		if self.request.user.is_staff:
-			return Organization.objects.all()
+			return super(OrganizationList, self).get_queryset()
 		else:
-			return Organization.objects.filter(owner=self.request.user)
+			return super(OrganizationList, self).get_queryset().filter(owner=self.request.user)
 
 class OrganizationDetail(generics.RetrieveUpdateDestroyAPIView):
 	queryset = Organization.objects.all()
@@ -53,7 +49,7 @@ class HouseholdList(generics.ListCreateAPIView):
 
 	def get_queryset(self):
 		if self.request.user.is_staff:
-			return super(HouseholdList, self).get_queryset();
+			return super(HouseholdList, self).get_queryset()
 		return super(HouseholdList, self).get_queryset().filter(organization__owner=self.request.user)
 
 class HouseholdDetail(generics.RetrieveUpdateDestroyAPIView):
@@ -66,15 +62,14 @@ class MemberList(generics.ListCreateAPIView):
 	serializer_class = MemberSerializer
 
 	def get_queryset(self):
-		set = super(MemberList, self).get_queryset()
 		if self.request.user.is_staff:
-			return set
-		else:
-			return set.filter(household__organization__owner=self.request.user)
+			return super(MemberList, self).get_queryset()
+		return super(MemberList, self).get_queryset().filter(household__organization__owner=self.request.user)
 
 class MemberDetail(generics.RetrieveUpdateDestroyAPIView):
 	queryset = Member.objects.all()
 	serializer_class = MemberSerializer
+	permission_classes = (localpermissions.MemberOwner,)
 
 class DistrictList(generics.ListCreateAPIView):
 	queryset = District.objects.all()
