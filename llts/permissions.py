@@ -46,3 +46,6 @@ class MemberOwner(permissions.BasePermission):
 	def has_object_permission(self, request, view, obj):
 		return obj.household.organization.owner == request.user or request.user.is_staff
 
+class DistrictOwner(permissions.BasePermission):
+	def has_object_permission(self, request, view, obj):
+		return obj.organization.owner == request.user or request.user.is_staff

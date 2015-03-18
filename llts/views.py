@@ -29,10 +29,6 @@ class OrganizationList(generics.ListCreateAPIView):
 		serializer.save(owner=self.request.user, households=[]);
 
 	def get_queryset(self):
-		"""
-		This view should return a list of the organizations
-		tied to the user. Admins see all
-		"""
 		if self.request.user.is_staff:
 			return super(OrganizationList, self).get_queryset()
 		else:
@@ -75,9 +71,15 @@ class DistrictList(generics.ListCreateAPIView):
 	queryset = District.objects.all()
 	serializer_class = DistrictSerializer
 
+	def get_queryset(self):
+		if self.request.user.is_staff:
+			return super(DistrictList, self).get_queryset()
+		return super(DistrictList, self).get_queryset().filter(organization__owner=self.request.user)
+
 class DistrictDetail(generics.RetrieveUpdateDestroyAPIView):
 	queryset = District.objects.all()
 	serializer_class = DistrictSerializer
+	permission_classes = (localpermissions.DistrictOwner,)
 
 class CompanionshipList(generics.ListCreateAPIView):
 	queryset = Companionship.objects.all()
