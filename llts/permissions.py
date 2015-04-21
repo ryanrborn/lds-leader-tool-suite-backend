@@ -34,13 +34,18 @@ class AnyCreateOwnerSeeEdit(permissions.BasePermission):
 			return obj.owner == request.user
 		return True
 
-class OwnerOrAdmin(permissions.BasePermission):
-	"""
-	Custom permission that allows only the owner or admin to view
-	objects
-	"""
-
+class OrganizationOwner(permissions.BasePermission):
 	def has_object_permission(self, request, view, obj):
-		if request.user.is_staff or obj.owner == request.user:
-			return True
-		return False
+		return obj.owner == request.user or request.user.is_staff
+
+class HouseholdOwner(permissions.BasePermission):
+	def has_object_permission(self, request, view, obj):
+		return obj.organization.owner == request.user or request.user.is_staff
+
+class MemberOwner(permissions.BasePermission):
+	def has_object_permission(self, request, view, obj):
+		return obj.household.organization.owner == request.user or request.user.is_staff
+
+class DistrictOwner(permissions.BasePermission):
+	def has_object_permission(self, request, view, obj):
+		return obj.organization.owner == request.user or request.user.is_staff

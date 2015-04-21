@@ -1,15 +1,11 @@
-from llts.models import Organization, Household, Member, District, Companionship, Assignment, Visit
-from llts.serializers import UserSerializer, RegistrationSerializer, OrganizationSerializer, HouseholdSerializer, MemberSerializer, DistrictSerializer, CompanionshipSerializer, AssignmentSerializer, VisitSerializer
+from llts.models import *
+from llts.serializers import *
 from llts import permissions as localpermissions
 from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from rest_framework import generics, permissions, views, status, mixins
 from rest_framework.response import Response
-
-
-def filter_queryset(self, queryset):
-	queryset = queryset.filter()
-	return queryset
 
 
 class UserList(generics.ListCreateAPIView):
@@ -26,80 +22,100 @@ class UserDetail(generics.RetrieveUpdateDestroyAPIView):
 	serializer_class = UserSerializer
 	permission_classes = (permissions.IsAdminUser,)
 
+class MeDetail(views.APIView):
+	permission_classes = (permissions.IsAuthenticated,)
+
+	def get(self, request, format=None):
+		user = User.objects.get(id=request.user.id)
+		return Response(FullUserSerializer(instance=user).data)
+
+	# def post(self, request, format=None): TODO: create functionality to edit your user
+
+
+
 class OrganizationList(generics.ListCreateAPIView):
+	queryset = Organization.objects.all()
 	serializer_class = OrganizationSerializer
 
-	# def post(self, request, format=None):
-	# 	VALID_FIELDS = [f.name for f in Organization._meta.fields]
-	# 	DEFAULTS = {
-	# 		'owner': self.request.user,
-	# 		'households': []
-	# 	}
-	# 	serialized = OrganizationSerializer(data=request.DATA)
-	# 	if serialized.is_valid():
-	# 		organization_data = {field: data for (field, data) in request.DATA.items() if field in VALID_FIELDS}
-	# 		organization_data.update(DEFAULTS)
-	# 		organization = Organization.objects.create_organization(
-	# 			**organization_data
-	# 		)
-	# 		return Response(OrganizationSerializer(instance=organization).data, status=status.HTTP_201_CREATED)
-	# 	else:
-	# 		return Response(serialized._errors, status=status.HTTP_400_BAD_REQUEST)
-
 	def perform_create(self, serializer):
-		serializer.save(owner=self.request.user, households=[]);
+		serializer.save(owner=self.request.user);
 
 	def get_queryset(self):
-		"""
-		This view should return a list of the organizations
-		tied to the user. Admins see all
-		"""
 		if self.request.user.is_staff:
-			return Organization.objects.all()
+			return super(OrganizationList, self).get_queryset()
 		else:
-			return Organization.objects.filter(owner=self.request.user)
+			return super(OrganizationList, self).get_queryset().filter(owner=self.request.user)
 
 class OrganizationDetail(generics.RetrieveUpdateDestroyAPIView):
 	queryset = Organization.objects.all()
 	serializer_class = OrganizationSerializer
-	permission_classes = (localpermissions.OwnerOrAdmin,)
+	permission_classes = (localpermissions.OrganizationOwner,)
 
 class HouseholdList(generics.ListCreateAPIView):
 	queryset = Household.objects.all()
 	serializer_class = HouseholdSerializer
 
 	def get_queryset(self):
+		if self.request.user.is_staff:
+			return super(HouseholdList, self).get_queryset()
 		return super(HouseholdList, self).get_queryset().filter(organization__owner=self.request.user)
 
 class HouseholdDetail(generics.RetrieveUpdateDestroyAPIView):
 	queryset = Household.objects.all()
 	serializer_class = HouseholdSerializer
-
-	def get_queryset(self):
-		return self.request
+	permission_classes = (localpermissions.HouseholdOwner,)
 
 class MemberList(generics.ListCreateAPIView):
 	queryset = Member.objects.all()
 	serializer_class = MemberSerializer
 
 	def get_queryset(self):
-		return super(MemberList, self).get_queryset().filter(household__organizations__user=self.request.user)
+		if self.request.user.is_staff:
+			return super(MemberList, self).get_queryset()
+		return super(MemberList, self).get_queryset().filter(household__organization__owner=self.request.user)
 
 class MemberDetail(generics.RetrieveUpdateDestroyAPIView):
 	queryset = Member.objects.all()
 	serializer_class = MemberSerializer
+	permission_classes = (localpermissions.MemberOwner,)
 
 class DistrictList(generics.ListCreateAPIView):
 	queryset = District.objects.all()
 	serializer_class = DistrictSerializer
 
+	def get_queryset(self):
+		if self.request.user.is_staff:
+			return super(DistrictList, self).get_queryset()
+		return super(DistrictList, self).get_queryset().filter(organization__owner=self.request.user)
+
 class DistrictDetail(generics.RetrieveUpdateDestroyAPIView):
 	queryset = District.objects.all()
 	serializer_class = DistrictSerializer
+	permission_classes = (localpermissions.DistrictOwner,)
 
-class CompanionshipList(generics.ListCreateAPIView):
-	queryset = Companionship.objects.all()
-	serializer_class = CompanionshipSerializer
+class CompanionshipList(views.APIView):
+
+	def get(self, request, format=None):
+		companionships = Companionship.objects.filter(district__organization__owner=self.request.user)
+		return Response(CompanionshipSerializer(companionships, many=True).data)
+
+	def post(self, request, format=None):
+		# accepts the following format
+		# {
+		# 	id: only used if editing a companionship,
+		# 	district: the id for the district
+		# 	companions: [list of member id's]
+		# }
+		with transaction.atomic():
+			district = District(id=request.DATA['district'])
+			companionship = Companionship(district=district)
+			companionship.save()
+			for companion in request.DATA['companions']:
+				member = Member(id=companion)
+				Companion(member=member, companionship=companionship).save()
+
+			return Response(data=CompanionshipSerializer(instance=companionship).data, status=status.HTTP_201_CREATED)
+
 
 class CompanionshipDetail(generics.RetrieveUpdateDestroyAPIView):
 	queryset = Companionship.objects.all()
@@ -143,3 +159,16 @@ class Register(views.APIView):
 			return Response(UserSerializer(instance=user).data, status=status.HTTP_201_CREATED)
 		else:
 			return Response(serialized._errors, status=status.HTTP_400_BAD_REQUEST)
+
+class CheckEmail(views.APIView):
+	permission_classes = (permissions.AllowAny,)
+
+	def post(self, request, format=None):
+		if 'username' not in request.DATA:
+			return Response({"username":["This field is required."]}, status=status.HTTP_400_BAD_REQUEST)
+		users = User.objects.filter(username=request.DATA['username'])
+		# users = []
+		if len(users) == 0:
+			return Response(request.DATA, status=status.HTTP_404_NOT_FOUND)
+		else:
+			return Response(request.DATA, status=status.HTTP_200_OK)
