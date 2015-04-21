@@ -35,7 +35,7 @@ class Companionship(models.Model):
 
 class Companion(models.Model):
 	member = models.ForeignKey(Member, related_name="companionships")
-	companionship = models.ForeignKey(Companionship, related_name="members")
+	companionship = models.ForeignKey(Companionship, related_name="companions")
 	created = models.DateTimeField(auto_now_add=True)
 
 class Assignment(models.Model):

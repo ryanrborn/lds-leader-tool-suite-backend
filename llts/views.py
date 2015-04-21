@@ -1,8 +1,9 @@
-from llts.models import Organization, Household, Member, District, Companionship, Assignment, Visit
-from llts.serializers import UserSerializer, RegistrationSerializer, OrganizationSerializer, HouseholdSerializer, MemberSerializer, DistrictSerializer, CompanionshipSerializer, AssignmentSerializer, VisitSerializer
+from llts.models import *
+from llts.serializers import *
 from llts import permissions as localpermissions
 from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from rest_framework import generics, permissions, views, status, mixins
 from rest_framework.response import Response
 
@@ -21,12 +22,23 @@ class UserDetail(generics.RetrieveUpdateDestroyAPIView):
 	serializer_class = UserSerializer
 	permission_classes = (permissions.IsAdminUser,)
 
+class MeDetail(views.APIView):
+	permission_classes = (permissions.IsAuthenticated,)
+
+	def get(self, request, format=None):
+		user = User.objects.get(id=request.user.id)
+		return Response(FullUserSerializer(instance=user).data)
+
+	# def post(self, request, format=None): TODO: create functionality to edit your user
+
+
+
 class OrganizationList(generics.ListCreateAPIView):
 	queryset = Organization.objects.all()
 	serializer_class = OrganizationSerializer
 
 	def perform_create(self, serializer):
-		serializer.save(owner=self.request.user, households=[]);
+		serializer.save(owner=self.request.user);
 
 	def get_queryset(self):
 		if self.request.user.is_staff:
@@ -81,9 +93,29 @@ class DistrictDetail(generics.RetrieveUpdateDestroyAPIView):
 	serializer_class = DistrictSerializer
 	permission_classes = (localpermissions.DistrictOwner,)
 
-class CompanionshipList(generics.ListCreateAPIView):
-	queryset = Companionship.objects.all()
-	serializer_class = CompanionshipSerializer
+class CompanionshipList(views.APIView):
+
+	def get(self, request, format=None):
+		companionships = Companionship.objects.filter(district__organization__owner=self.request.user)
+		return Response(CompanionshipSerializer(companionships, many=True).data)
+
+	def post(self, request, format=None):
+		# accepts the following format
+		# {
+		# 	id: only used if editing a companionship,
+		# 	district: the id for the district
+		# 	companions: [list of member id's]
+		# }
+		with transaction.atomic():
+			district = District(id=request.DATA['district'])
+			companionship = Companionship(district=district)
+			companionship.save()
+			for companion in request.DATA['companions']:
+				member = Member(id=companion)
+				Companion(member=member, companionship=companionship).save()
+
+			return Response(data=CompanionshipSerializer(instance=companionship).data, status=status.HTTP_201_CREATED)
+
 
 class CompanionshipDetail(generics.RetrieveUpdateDestroyAPIView):
 	queryset = Companionship.objects.all()
@@ -127,3 +159,16 @@ class Register(views.APIView):
 			return Response(UserSerializer(instance=user).data, status=status.HTTP_201_CREATED)
 		else:
 			return Response(serialized._errors, status=status.HTTP_400_BAD_REQUEST)
+
+class CheckEmail(views.APIView):
+	permission_classes = (permissions.AllowAny,)
+
+	def post(self, request, format=None):
+		if 'username' not in request.DATA:
+			return Response({"username":["This field is required."]}, status=status.HTTP_400_BAD_REQUEST)
+		users = User.objects.filter(username=request.DATA['username'])
+		# users = []
+		if len(users) == 0:
+			return Response(request.DATA, status=status.HTTP_404_NOT_FOUND)
+		else:
+			return Response(request.DATA, status=status.HTTP_200_OK)

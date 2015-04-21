@@ -5,6 +5,7 @@ from llts import views
 urlpatterns = [
 	url(r'^users/$', views.UserList.as_view()),
 	url(r'^users/(?P<pk>[0-9]+)/$', views.UserDetail.as_view()),
+	url(r'^me/$', views.MeDetail.as_view()),
 	url(r'^organizations/$', views.OrganizationList.as_view()),
 	url(r'^organizations/(?P<pk>[0-9]+)/$', views.OrganizationDetail.as_view()),
 	url(r'^households/$', views.HouseholdList.as_view()),
@@ -20,6 +21,7 @@ urlpatterns = [
 	url(r'^visits/$', views.VisitList.as_view()),
 	url(r'^visits/(?P<pk>[0-9]+)/$', views.VisitDetail.as_view()),
 	url(r'^auth/create/$', views.Register.as_view()),
+	url(r'^auth/check/$', views.CheckEmail.as_view()),
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns)
